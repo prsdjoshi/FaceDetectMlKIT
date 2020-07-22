@@ -119,7 +119,7 @@ public class DrawView extends View {
         paint.setAntiAlias(true);
         paint.setDither(true);
         paint.setColor(Color.parseColor("#55000000"));
-        paint.setStyle(Paint.Style.FILL);
+        paint.setStyle(Paint.Style.STROKE);
 
         paint.setStrokeJoin(Paint.Join.ROUND);
         // mPaint.setStrokeCap(Paint.Cap.ROUND);

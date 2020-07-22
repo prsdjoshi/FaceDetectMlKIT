@@ -38,24 +38,17 @@ import android.os.Trace;
 import android.util.Size;
 import android.view.Surface;
 import android.view.View;
-import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.widget.CompoundButton;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.SwitchCompat;
 import androidx.appcompat.widget.Toolbar;
 
 import com.commodity.facedetectmlkit.env.ImageUtils;
 import com.commodity.facedetectmlkit.env.Logger;
 import com.commodity.facedetectmlkit.setting.resizablerectangle.ResizableRectangleActivity;
-import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 
@@ -118,7 +111,7 @@ public abstract class CameraActivity extends AppCompatActivity
 
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-    setContentView(R.layout.tfe_od_activity_camera);
+    setContentView(R.layout.activity_camera);
     Toolbar toolbar = findViewById(R.id.toolbar);
     setSupportActionBar(toolbar);
     getSupportActionBar().setDisplayShowTitleEnabled(false);

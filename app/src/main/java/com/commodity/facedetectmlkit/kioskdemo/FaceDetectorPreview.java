@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-package com.commodity.facedetectmlkit;
+package com.commodity.facedetectmlkit.kioskdemo;
 
+import android.app.Activity;
+import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -31,6 +33,7 @@ import android.hardware.camera2.CameraCharacteristics;
 import android.media.ImageReader.OnImageAvailableListener;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.SystemClock;
 import android.text.Layout;
 import android.text.StaticLayout;
@@ -42,8 +45,10 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -51,6 +56,8 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 
+import com.commodity.facedetectmlkit.CameraActivity;
+import com.commodity.facedetectmlkit.R;
 import com.commodity.facedetectmlkit.customview.OverlayView;
 import com.commodity.facedetectmlkit.env.BorderedText;
 import com.commodity.facedetectmlkit.env.ImageUtils;
@@ -67,7 +74,6 @@ import com.google.mlkit.vision.face.FaceDetection;
 import com.google.mlkit.vision.face.FaceDetector;
 import com.google.mlkit.vision.face.FaceDetectorOptions;
 
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -81,18 +87,9 @@ import static com.commodity.facedetectmlkit.tracking.MultiBoxTracker.frameToCanv
  * objects.
  */
 @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-public class DetectorActivity extends CameraActivity implements OnImageAvailableListener {
+public class FaceDetectorPreview extends CameraPreview implements OnImageAvailableListener {
     private static final Logger LOGGER = new Logger();
 
-    // Configuration values for the prepackaged SSD model.
-    //private static final int TF_OD_API_INPUT_SIZE = 300;
-    //private static final boolean TF_OD_API_IS_QUANTIZED = true;
-    //private static final String TF_OD_API_MODEL_FILE = "detect.tflite";
-    //private static final String TF_OD_API_LABELS_FILE = "file:///android_asset/labelmap.txt";
-
-    //private static final Size DESIRED_PREVIEW_SIZE = new Size(640, 480);
-
-    // Face Mask
     private static final int TF_OD_API_INPUT_SIZE = 224;
     private static final boolean TF_OD_API_IS_QUANTIZED = false;
     private static final String TF_OD_API_MODEL_FILE = "mask_detector.tflite";
@@ -110,6 +107,8 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
     private static final boolean SAVE_PREVIEW_BITMAP = false;
     private static final float TEXT_SIZE_DIP = 10;
+    private final Activity activity;
+    private Handler previewHandler;
     OverlayView trackingOverlay;
     private Integer sensorOrientation;
 
@@ -150,14 +149,19 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
     boolean isNoface_inRect = true;
     boolean isNoface_outRect = true;
     ArrayList<String> array_probability = new ArrayList<>();
+    Context context;
+    private FrameLayout frameLayout;
+    private boolean isPreviewVisible = false;
 
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+   public FaceDetectorPreview(Context context, Integer Facing) {
+        super(context, Facing);
+        this.context = context;
+        activity = (Activity) context;
 
-        Log.d("window width: ", String.valueOf(getWindow().getWindowManager().getDefaultDisplay().getWidth()));
-        Log.d("window height: ", String.valueOf(getWindow().getWindowManager().getDefaultDisplay().getHeight()));
+
+        Log.d("window width: ", String.valueOf(activity.getWindow().getWindowManager().getDefaultDisplay().getWidth()));
+        Log.d("window height: ", String.valueOf(activity.getWindow().getWindowManager().getDefaultDisplay().getHeight()));
         // Real-time contour detection of multiple faces
         FaceDetectorOptions options =
                 new FaceDetectorOptions.Builder()
@@ -171,7 +175,12 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
         faceDetector = detector;
 
-
+        try {
+            if (previewHandler == null)
+                previewHandler = new Handler();
+        } catch (Exception e) {
+            Log.e("Exception in creating handler in FaceDetectorPreview ", e.toString());
+        }
         //checkWritePermission();
 
     }
@@ -181,18 +190,18 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
     public void onPreviewSizeChosen(final Size size, final int rotation) {
         final float textSizePx =
                 TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP, TEXT_SIZE_DIP, getResources().getDisplayMetrics());
+                        TypedValue.COMPLEX_UNIT_DIP, TEXT_SIZE_DIP, context.getResources().getDisplayMetrics());
 
         borderedText = new BorderedText(textSizePx);
         borderedText.setTypeface(Typeface.MONOSPACE);
 
-        tracker = new MultiBoxTracker(this);
+        tracker = new MultiBoxTracker(context);
 
 
         try {
             detector =
                     TFLiteObjectDetectionAPIModel.create(
-                            getAssets(),
+                            context.getAssets(),
                             TF_OD_API_MODEL_FILE,
                             TF_OD_API_LABELS_FILE,
                             TF_OD_API_INPUT_SIZE,
@@ -203,9 +212,9 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             LOGGER.e(e, "Exception initializing classifier!");
             Toast toast =
                     Toast.makeText(
-                            getApplicationContext(), "Classifier could not be initialized", Toast.LENGTH_SHORT);
+                            activity.getApplicationContext(), "Classifier could not be initialized", Toast.LENGTH_SHORT);
             toast.show();
-            finish();
+            activity.finish();
         }
 
         previewWidth = size.getWidth();
@@ -250,46 +259,51 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
         frameToCropTransform.invert(cropToFrameTransform);
 
         Log.d("Desired Width: ",DESIRED_PREVIEW_SIZE.getWidth()+" Height: "+DESIRED_PREVIEW_SIZE.getHeight());
-        trackingOverlay = (OverlayView) findViewById(R.id.tracking_overlay);
-        txt_temp = (TextView) findViewById(R.id.txt_temp);
-        lay_bottom = (LinearLayout) findViewById(R.id.lay_bottom);
-        LinearLayout linearLayout = new LinearLayout(this);
+        trackingOverlay = (OverlayView) activity.findViewById(R.id.tracking_overlay);
+
+        frameLayout =(FrameLayout) activity.findViewById(R.id.rectcontainer);
+        RelativeLayout.LayoutParams capturePhotoFrameLayout = new RelativeLayout.LayoutParams(1, 1);
+        frameLayout.setLayoutParams(capturePhotoFrameLayout);
+
+        txt_temp = (TextView) activity.findViewById(R.id.txt_temp);
+        lay_bottom = (LinearLayout) activity.findViewById(R.id.lay_bottom);
+        LinearLayout linearLayout = new LinearLayout(activity);
         linearLayout.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (int) (DESIRED_PREVIEW_SIZE.getWidth()*0.2));
         params.weight =1f;
         linearLayout.setLayoutParams(params);
 
-        lay_mask = new LinearLayout(this);
+        lay_mask = new LinearLayout(activity);
         LinearLayout.LayoutParams params1 = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT,0.6f);
         lay_mask.setLayoutParams(params1);
-        lay_mask.setBackgroundColor(getResources().getColor(R.color.white_semi_transparent));
+        lay_mask.setBackgroundColor(activity.getResources().getColor(R.color.white_semi_transparent));
         linearLayout.addView(lay_mask);
 
-        lay_msg = new LinearLayout(this);
+        lay_msg = new LinearLayout(activity);
         LinearLayout.LayoutParams params2 = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT,0.4f);
         lay_msg.setLayoutParams(params2);
-        lay_msg.setBackgroundColor(getResources().getColor(R.color.black_semi_transparent));
+        lay_msg.setBackgroundColor(activity.getResources().getColor(R.color.black_semi_transparent));
         lay_msg.setOrientation(LinearLayout.HORIZONTAL);
         linearLayout.addView(lay_msg);
 
         lay_bottom.addView(linearLayout);
 
-        txt_mask = new TextView(getApplicationContext());
+        txt_mask = new TextView(activity.getApplicationContext());
         txt_mask.setText(ContantValues.MASK_NOTFOUND_LABEL.getEventCodeString());
-        txt_mask.setTextColor(getResources().getColor(R.color.black));
+        txt_mask.setTextColor(activity.getResources().getColor(R.color.black));
         txt_mask.setPadding(5,5,5,5);
         txt_mask.setLayoutParams(getTextParams());
         txt_mask.setGravity(Gravity.CENTER_HORIZONTAL|Gravity.CENTER_VERTICAL);
         lay_mask.addView(txt_mask);
 
-        txt_msg = new TextView(getApplicationContext());
+        txt_msg = new TextView(activity.getApplicationContext());
         txt_msg.setText(ContantValues.NOTPERMIT_LABEL.getEventCodeString());
         txt_msg.setGravity(Gravity.CENTER);
-        txt_msg.setTextColor(getResources().getColor(R.color.white));
+        txt_msg.setTextColor(activity.getResources().getColor(R.color.white));
         txt_msg.setPadding(5,5,5,5);
         txt_msg.setLayoutParams(getTextParams());
 
-        imagemsg =new ImageView(this);
+        imagemsg =new ImageView(activity);
         int img_size= (int) (DESIRED_PREVIEW_SIZE.getWidth()*0.2/2);
         LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(img_size, img_size);
         layoutParams.gravity=Gravity.CENTER_VERTICAL;
@@ -374,27 +388,28 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                 !TextUtils.isEmpty(ContantValues.DETECTED_TEMPERATURE.getEventCodeString())
                         ? String.format("Temperature: %s °C", ContantValues.DETECTED_TEMPERATURE.getEventCodeString())
                         : "";
+
         try {
             if(ispermit.equalsIgnoreCase(ContantValues.PREVIEW_MASK_LABEL.getEventCodeString()))
             {
-                    imagemsg.setImageDrawable(getResources().getDrawable(R.drawable.ic_checked));
-                    lay_msg.setBackgroundColor(getResources().getColor(R.color.green));
+                    imagemsg.setImageDrawable(activity.getResources().getDrawable(R.drawable.ic_checked));
+                    lay_msg.setBackgroundColor(activity.getResources().getColor(R.color.green));
                     txt_msg.setText(ContantValues.PERMIT_LABEL.getEventCodeString());
                     txt_mask.setText(ContantValues.MASK_FOUND_LABEL.getEventCodeString());
-                    txt_temp.setBackgroundTintList(ColorStateList.valueOf(getResources().getColor(R.color.yellow_semi_transparent)));
-                    txt_temp.setTextColor(getResources().getColor(R.color.black));
+                    txt_temp.setBackgroundTintList(ColorStateList.valueOf(activity.getResources().getColor(R.color.yellow_semi_transparent)));
+                    txt_temp.setTextColor(activity.getResources().getColor(R.color.black));
                     txt_temp.setText(detected_temp_value);
                     txt_temp.setVisibility(View.VISIBLE);
                     lay_bottom.setVisibility(View.VISIBLE);
 
             }else if(ispermit.equalsIgnoreCase(ContantValues.PREVIEW_NOMASK_LABEL.getEventCodeString()))
             {
-                    imagemsg.setImageDrawable(getResources().getDrawable(R.drawable.ic_stop));
-                    lay_msg.setBackgroundColor(getResources().getColor(R.color.red));
+                    imagemsg.setImageDrawable(activity.getResources().getDrawable(R.drawable.ic_stop));
+                    lay_msg.setBackgroundColor(activity.getResources().getColor(R.color.red));
                     txt_msg.setText(ContantValues.NOTPERMIT_LABEL.getEventCodeString());
                     txt_mask.setText(ContantValues.MASK_NOTFOUND_LABEL.getEventCodeString());
-                    txt_temp.setBackgroundTintList(ColorStateList.valueOf(getResources().getColor(R.color.red)));
-                    txt_temp.setTextColor(getResources().getColor(R.color.white));
+                    txt_temp.setBackgroundTintList(ColorStateList.valueOf(activity.getResources().getColor(R.color.red)));
+                    txt_temp.setTextColor(activity.getResources().getColor(R.color.white));
                     txt_temp.setText(detected_temp_value);
                     txt_temp.setVisibility(View.VISIBLE);
                     lay_bottom.setVisibility(View.VISIBLE);
@@ -458,7 +473,8 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                             if(isNoface_inRect)
                             {
                                 Log.d("Face Detection: ", String.valueOf(faces.size()));
-                                runOnUiThread(
+
+                                activity.runOnUiThread(
                                         new Runnable() {
                                             @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
                                             @Override
@@ -467,14 +483,41 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                                                 array_probability.clear();
                                             }});
                             }
+                            activity.runOnUiThread(
+                                    new Runnable() {
+                                        @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+                                        @Override
+                                        public void run() {
+                                            if(isPreviewVisible)
+                                            {
+                                                int duration = (1000 * 3);
+                                                previewHandler.postDelayed(runnableFaceDetectorPreview, duration);
+                                            }
+                                       }
+                                    });
                             updateResults(currTimestamp, new LinkedList<>());
                             return;
+                        }else {
+                            activity.runOnUiThread(
+                                    new Runnable() {
+                                        @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+                                        @Override
+                                        public void run() {
+                                            if (previewHandler != null) {
+                                                previewHandler.removeCallbacks(runnableFaceDetectorPreview);
+                                            }
+                                            if(!isPreviewVisible)
+                                            {
+                                                setFullCameraPreview();
+                                            }
+                                        }});
+
                         }
                         runInBackground(
                                 new Runnable() {
                                     @Override
                                     public void run() {
-
+                                        Log.d("Face Detection: ", String.valueOf(faces.size()));
                                         onFacesDetected(currTimestamp, faces);
                                     }
                                 });
@@ -483,6 +526,32 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                 });
 
 
+    }
+    private Runnable runnableFaceDetectorPreview = new Runnable() {
+
+        @Override
+        public void run() {
+            try {
+                setInvisibleCameraPreview();
+
+            } catch (Exception e) {
+                Log.e("Exception in Face Detection Preview Interval runnable ",
+                        e.toString());
+            }
+
+        }
+    };
+
+    private void setFullCameraPreview() {
+        isPreviewVisible=true;
+        RelativeLayout.LayoutParams capturePhotoFrameLayout = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        frameLayout.setLayoutParams(capturePhotoFrameLayout);
+    }
+
+    private void setInvisibleCameraPreview() {
+        isPreviewVisible=false;
+        RelativeLayout.LayoutParams capturePhotoFrameLayout = new RelativeLayout.LayoutParams(1, 1);
+        frameLayout.setLayoutParams(capturePhotoFrameLayout);
     }
 
     @Override
@@ -559,7 +628,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
         computingDetection = false;
 
 
-        runOnUiThread(
+        activity.runOnUiThread(
                 new Runnable() {
                     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
                     @Override
@@ -760,7 +829,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
         if(inRect==0)
         {
-            runOnUiThread(
+            activity.runOnUiThread(
                     new Runnable() {
                         @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
                         @Override

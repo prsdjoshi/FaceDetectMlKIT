@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <com.commodity.facedetectmlkit.customview.AutoFitTextureView
+        android:id="@+id/texture"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <com.commodity.facedetectmlkit.customview.OverlayView
+        android:id="@+id/tracking_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+      <TextView
+            android:id="@+id/txt_temp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="20dp"
+            android:layout_centerInParent="true"
+            android:layout_above="@+id/lay_bottom"
+            android:layout_marginBottom="50dp"
+            android:visibility="gone"
+            android:backgroundTint="@color/red"
+            android:background="@drawable/round_rectangle"
+            android:padding="5dp"
+            android:textColor="@color/white"
+            android:text="Temperature: 38.2 °C"></TextView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:id="@+id/lay_bottom"
+            android:orientation="vertical">
+
+        </LinearLayout>
+    </RelativeLayout>
+</FrameLayout>

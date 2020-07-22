@@ -1,4 +1,4 @@
-package com.commodity.facedetectmlkit;
+package com.commodity.facedetectmlkit.kioskdemo;
 
 /*
  * Copyright 2019 The TensorFlow Authors. All Rights Reserved.
@@ -34,9 +34,11 @@ import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 
-
 import androidx.annotation.RequiresApi;
 
+import com.commodity.facedetectmlkit.CameraConnectionFragment;
+import com.commodity.facedetectmlkit.DetectorActivity;
+import com.commodity.facedetectmlkit.R;
 import com.commodity.facedetectmlkit.customview.AutoFitTextureView;
 import com.commodity.facedetectmlkit.env.ImageUtils;
 import com.commodity.facedetectmlkit.env.Logger;
@@ -45,7 +47,7 @@ import java.io.IOException;
 import java.util.List;
 
 @SuppressLint("ValidFragment")
-public class LegacyCameraConnectionFragment extends Fragment {
+public class FaceDetectCameraConnection extends Fragment {
     private static final Logger LOGGER = new Logger();
     /**
      * Conversion from screen rotation to JPEG orientation.
@@ -138,7 +140,7 @@ public class LegacyCameraConnectionFragment extends Fragment {
      */
     private HandlerThread backgroundThread;
 
-    public LegacyCameraConnectionFragment(
+    public FaceDetectCameraConnection(
             final Camera.PreviewCallback imageListener, final int layout, final Size desiredSize, int facing) {
         this.imageListener = imageListener;
         this.layout = layout;
@@ -195,18 +197,9 @@ public class LegacyCameraConnectionFragment extends Fragment {
 
     @Override
     public void onPause() {
-        //stopCamera();
-        if (camera != null) {
-            camera.stopPreview();
-        }
+        stopCamera();
         stopBackgroundThread();
         super.onPause();
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        stopCamera();
     }
 
     /**

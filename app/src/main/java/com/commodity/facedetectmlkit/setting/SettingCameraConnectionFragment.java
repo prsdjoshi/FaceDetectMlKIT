@@ -33,6 +33,11 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
+import android.widget.TextView;
 
 import androidx.annotation.RequiresApi;
 
@@ -42,6 +47,9 @@ import com.commodity.facedetectmlkit.R;
 import com.commodity.facedetectmlkit.customview.AutoFitTextureView;
 import com.commodity.facedetectmlkit.env.ImageUtils;
 import com.commodity.facedetectmlkit.env.Logger;
+import com.commodity.facedetectmlkit.setting.resizablerectangle.DrawView;
+import com.commodity.facedetectmlkit.setting.resizablerectangle.ResizableRectangleActivity;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.io.IOException;
 import java.util.List;
@@ -78,6 +86,13 @@ public class SettingCameraConnectionFragment extends Fragment {
      * {@link TextureView.SurfaceTextureListener} handles several lifecycle events on a {@link
      * TextureView}.
      */
+    private FloatingActionButton btnadd;
+    private DrawView drawView1;
+    private LinearLayout layrect;
+    private TextView txt_msg;
+    private ImageView imagemsg;
+    private static final Size DESIRED_PREVIEW_SIZE = new Size(1080, 1920);
+
     private final TextureView.SurfaceTextureListener surfaceTextureListener =
             new TextureView.SurfaceTextureListener() {
                 @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
@@ -160,7 +175,22 @@ public class SettingCameraConnectionFragment extends Fragment {
     @Override
     public View onCreateView(
             final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
-        return inflater.inflate(layout, container, false);
+        View view= inflater.inflate(layout, container, false);
+        drawView1 = (DrawView) view.findViewById(R.id.drawView1);
+        btnadd = (FloatingActionButton) view.findViewById(R.id.btnadd);
+
+        FrameLayout.LayoutParams drawviewlayoutParams=new FrameLayout.LayoutParams(DESIRED_PREVIEW_SIZE.getWidth(),DESIRED_PREVIEW_SIZE.getHeight());
+        drawView1.setLayoutParams(drawviewlayoutParams);
+
+        btnadd.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                drawView1.getCoordinatesRect();
+                getActivity().finish();
+                startActivity(new Intent(getContext(), DetectorActivity.class));
+            }
+        });
+        return view;
     }
 
     @Override
@@ -182,9 +212,16 @@ public class SettingCameraConnectionFragment extends Fragment {
         // a camera and start preview from here (otherwise, we wait until the surface is ready in
         // the SurfaceTextureListener).
 
+        if (textureView.isAvailable()) {
             if (camera != null) {
                 camera.startPreview();
+            } else {
+                startActivity(new Intent(this.getActivity(), DetectorActivity.class));
             }
+
+        } else {
+            textureView.setSurfaceTextureListener(surfaceTextureListener);
+        }
     }
 
     @Override

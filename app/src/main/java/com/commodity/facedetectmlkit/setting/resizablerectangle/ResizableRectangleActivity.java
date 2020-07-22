@@ -50,7 +50,7 @@ public class ResizableRectangleActivity extends Activity implements
     private LinearLayout layrect;
     private TextView txt_msg;
     private ImageView imagemsg;
-    private static final Size DESIRED_PREVIEW_SIZE = new Size(1080, 1920);
+    private static final Size DESIRED_PREVIEW_SIZE = new Size(1920, 1080);
 
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     @Override
@@ -58,31 +58,19 @@ public class ResizableRectangleActivity extends Activity implements
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.resizable_rectangle_activity);
 
-        drawView1 = (DrawView) findViewById(R.id.drawView1);
-        btnadd = (FloatingActionButton) findViewById(R.id.btnadd);
+          int facing = (useFacing == CameraCharacteristics.LENS_FACING_BACK) ?
+                Camera.CameraInfo.CAMERA_FACING_BACK :
+                Camera.CameraInfo.CAMERA_FACING_FRONT;
+        SettingCameraConnectionFragment frag = new SettingCameraConnectionFragment(this,
+                getLayoutId(),
+                DESIRED_PREVIEW_SIZE, facing);
+        getFragmentManager().beginTransaction().replace(R.id.rectcontainer, frag).commit();
 
-        RelativeLayout.LayoutParams drawviewlayoutParams=new RelativeLayout.LayoutParams(DESIRED_PREVIEW_SIZE.getWidth(),DESIRED_PREVIEW_SIZE.getHeight());
-        drawView1.setLayoutParams(drawviewlayoutParams);
-//        int facing = (useFacing == CameraCharacteristics.LENS_FACING_BACK) ?
-//                Camera.CameraInfo.CAMERA_FACING_BACK :
-//                Camera.CameraInfo.CAMERA_FACING_FRONT;
-//        SettingCameraConnectionFragment frag = new SettingCameraConnectionFragment(this,
-//                R.layout.resizable_rectangle_activity,
-//                DESIRED_PREVIEW_SIZE, facing);
-//        getFragmentManager().beginTransaction().replace(R.id.container, frag).commit();
-
-        btnadd.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                drawView1.getCoordinatesRect();
-                finish();
-                startActivity(new Intent(ResizableRectangleActivity.this, DetectorActivity.class));
-
-            }
-        });
 
 	}
-
+    public int getLayoutId() {
+        return R.layout.fragment_setting_rectangle;
+    }
     @Override
     public void onPreviewFrame(byte[] bytes, Camera camera) {
 

@@ -13,8 +13,10 @@ public enum ContantValues {
     NOTPERMIT_LABEL("Visiting Access Denied"),
     PREVIEW_MASK_LABEL("mask"),
     PREVIEW_NOMASK_LABEL("no mask"),
-    DETECTED_TEMPERATURE("36.2");
+    DETECTED_TEMPERATURE("36.2"),
 
+    ACTIVITY_PAUSED("ACTIVITY_PAUSED"),
+    ACTIVITY_RESUMED("ACTIVITY_RESUMED");
 
     private String eventCodeString;
     private int eventCodeInteger;
