@@ -22,10 +22,12 @@ import android.content.Intent;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.hardware.Camera.CameraInfo;
+import android.hardware.camera2.CameraCharacteristics;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.LayoutInflater;
@@ -33,6 +35,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -47,6 +50,7 @@ import com.commodity.facedetectmlkit.R;
 import com.commodity.facedetectmlkit.customview.AutoFitTextureView;
 import com.commodity.facedetectmlkit.env.ImageUtils;
 import com.commodity.facedetectmlkit.env.Logger;
+import com.commodity.facedetectmlkit.kioskdemo.FaceDetectActivity;
 import com.commodity.facedetectmlkit.setting.resizablerectangle.DrawView;
 import com.commodity.facedetectmlkit.setting.resizablerectangle.ResizableRectangleActivity;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -86,7 +90,7 @@ public class SettingCameraConnectionFragment extends Fragment {
      * {@link TextureView.SurfaceTextureListener} handles several lifecycle events on a {@link
      * TextureView}.
      */
-    private FloatingActionButton btnadd;
+    private Button btnadd;
     private DrawView drawView1;
     private LinearLayout layrect;
     private TextView txt_msg;
@@ -102,38 +106,50 @@ public class SettingCameraConnectionFragment extends Fragment {
 
 
                     try {
-                        int index = getCameraId();
-                        camera = Camera.open(index);
-                        Camera.Parameters parameters = camera.getParameters();
-                        List<String> focusModes = parameters.getSupportedFocusModes();
-                        if (focusModes != null
-                                && focusModes.contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE)) {
-                            parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
+                        try {
+
+                            int index = getCameraId();
+                            Log.d("SettingCameraConnectionFragment face camera index: ", String.valueOf(index));
+
+                            try {
+                                camera = Camera.open(index);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                            Camera.Parameters parameters = camera.getParameters();
+                            List<String> focusModes = parameters.getSupportedFocusModes();
+                            if (focusModes != null
+                                    && focusModes.contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE)) {
+                                parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
+                            }
+                            List<Camera.Size> cameraSizes = parameters.getSupportedPreviewSizes();
+                            Size[] sizes = new Size[cameraSizes.size()];
+                            int i = 0;
+                            for (Camera.Size size : cameraSizes) {
+                                sizes[i++] = new Size(size.width, size.height);
+                            }
+                            Size previewSize =
+                                    CameraConnectionFragment.chooseOptimalSize(
+                                            sizes, desiredSize.getWidth(), desiredSize.getHeight());
+                            parameters.setPreviewSize(previewSize.getWidth(), previewSize.getHeight());
+                            camera.setDisplayOrientation(90);
+                            camera.setParameters(parameters);
+                            camera.setPreviewTexture(texture);
+                        } catch (IOException exception) {
+                            camera.release();
                         }
-                        List<Camera.Size> cameraSizes = parameters.getSupportedPreviewSizes();
-                        Size[] sizes = new Size[cameraSizes.size()];
-                        int i = 0;
-                        for (Camera.Size size : cameraSizes) {
-                            sizes[i++] = new Size(size.width, size.height);
-                        }
-                        Size previewSize =
-                                CameraConnectionFragment.chooseOptimalSize(
-                                        sizes, desiredSize.getWidth(), desiredSize.getHeight());
-                        parameters.setPreviewSize(previewSize.getWidth(), previewSize.getHeight());
-                        camera.setDisplayOrientation(90);
-                        camera.setParameters(parameters);
-                        camera.setPreviewTexture(texture);
-                    } catch (IOException exception) {
-                        camera.release();
+
+                        camera.setPreviewCallbackWithBuffer(imageListener);
+                        Camera.Size s = camera.getParameters().getPreviewSize();
+                        camera.addCallbackBuffer(new byte[ImageUtils.getYUVByteSize(s.height, s.width)]);
+
+                        textureView.setAspectRatio(s.height, s.width);
+
+                        camera.startPreview();
+                    } catch (Exception e) {
+                        stopCamera();
+                        e.printStackTrace();
                     }
-
-                    camera.setPreviewCallbackWithBuffer(imageListener);
-                    Camera.Size s = camera.getParameters().getPreviewSize();
-                    camera.addCallbackBuffer(new byte[ImageUtils.getYUVByteSize(s.height, s.width)]);
-
-                    textureView.setAspectRatio(s.height, s.width);
-
-                    camera.startPreview();
                 }
 
                 @Override
@@ -143,6 +159,7 @@ public class SettingCameraConnectionFragment extends Fragment {
 
                 @Override
                 public boolean onSurfaceTextureDestroyed(final SurfaceTexture texture) {
+                    stopCamera();
                     return true;
                 }
 
@@ -162,13 +179,14 @@ public class SettingCameraConnectionFragment extends Fragment {
         this.desiredSize = desiredSize;
         this.facing = facing;
 
+        Log.d("SettingCameraConnectionFragment face camera id: ", String.valueOf(facing));
     }
 
     @Override
     public void setArguments(Bundle args) {
         super.setArguments(args);
 
-        this.facing = args.getInt(KEY_FACING, CameraInfo.CAMERA_FACING_FRONT);
+     //   this.facing = args.getInt(KEY_FACING, CameraInfo.CAMERA_FACING_FRONT);
 
     }
 
@@ -177,17 +195,18 @@ public class SettingCameraConnectionFragment extends Fragment {
             final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
         View view= inflater.inflate(layout, container, false);
         drawView1 = (DrawView) view.findViewById(R.id.drawView1);
-        btnadd = (FloatingActionButton) view.findViewById(R.id.btnadd);
+        btnadd = (Button) view.findViewById(R.id.btnadd);
 
-        FrameLayout.LayoutParams drawviewlayoutParams=new FrameLayout.LayoutParams(DESIRED_PREVIEW_SIZE.getWidth(),DESIRED_PREVIEW_SIZE.getHeight());
-        drawView1.setLayoutParams(drawviewlayoutParams);
+//        FrameLayout.LayoutParams drawviewlayoutParams=new FrameLayout.LayoutParams(DESIRED_PREVIEW_SIZE.getWidth(),DESIRED_PREVIEW_SIZE.getHeight());
+//        drawView1.setLayoutParams(drawviewlayoutParams);
+
 
         btnadd.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 drawView1.getCoordinatesRect();
                 getActivity().finish();
-                startActivity(new Intent(getContext(), DetectorActivity.class));
+            //   startActivity(new Intent(getContext(), FaceDetectActivity.class));
             }
         });
         return view;
@@ -216,7 +235,7 @@ public class SettingCameraConnectionFragment extends Fragment {
             if (camera != null) {
                 camera.startPreview();
             } else {
-                startActivity(new Intent(this.getActivity(), DetectorActivity.class));
+//                startActivity(new Intent(this.getActivity(), DetectorActivity.class));
             }
 
         } else {

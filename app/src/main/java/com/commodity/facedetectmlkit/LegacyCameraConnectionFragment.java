@@ -19,13 +19,16 @@ package com.commodity.facedetectmlkit;
 import android.annotation.SuppressLint;
 import android.app.Fragment;
 import android.content.Intent;
+import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.hardware.Camera.CameraInfo;
+import android.hardware.camera2.CameraCharacteristics;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.LayoutInflater;
@@ -33,16 +36,22 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 
 import androidx.annotation.RequiresApi;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.commodity.facedetectmlkit.customview.AutoFitTextureView;
 import com.commodity.facedetectmlkit.env.ImageUtils;
 import com.commodity.facedetectmlkit.env.Logger;
+import com.commodity.facedetectmlkit.kioskdemo.FaceDetectorPreview;
+import com.commodity.facedetectmlkit.setting.ContantValues;
 
 import java.io.IOException;
 import java.util.List;
+
+import static com.commodity.facedetectmlkit.kioskdemo.FaceDetectActivity.useFacingView;
 
 @SuppressLint("ValidFragment")
 public class LegacyCameraConnectionFragment extends Fragment {
@@ -59,6 +68,8 @@ public class LegacyCameraConnectionFragment extends Fragment {
         ORIENTATIONS.append(Surface.ROTATION_180, 270);
         ORIENTATIONS.append(Surface.ROTATION_270, 180);
     }
+
+    private static int usefacing;
 
     private Camera camera;
     private Camera.PreviewCallback imageListener;
@@ -85,47 +96,76 @@ public class LegacyCameraConnectionFragment extends Fragment {
 
 
                     try {
-                        int index = getCameraId();
-                        camera = Camera.open(index);
-                        Camera.Parameters parameters = camera.getParameters();
-                        List<String> focusModes = parameters.getSupportedFocusModes();
-                        if (focusModes != null
-                                && focusModes.contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE)) {
-                            parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
+                        try {
+                            int index = getCameraId();
+                            Log.d("LegacyCameraConnectionFragment face camera index: ", String.valueOf(index));
+
+                            camera = Camera.open(index);
+                            Camera.Parameters parameters = camera.getParameters();
+                            List<String> focusModes = parameters.getSupportedFocusModes();
+                            if (focusModes != null
+                                    && focusModes.contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE)) {
+                                parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
+                            }
+                            List<Camera.Size> cameraSizes = parameters.getSupportedPreviewSizes();
+                            Size[] sizes = new Size[cameraSizes.size()];
+                            int i = 0;
+                            for (Camera.Size size : cameraSizes) {
+                                sizes[i++] = new Size(size.width, size.height);
+                            }
+                            Size previewSize =
+                                    CameraConnectionFragment.chooseOptimalSize(
+                                            sizes, desiredSize.getWidth(), desiredSize.getHeight());
+                            parameters.setPreviewSize(previewSize.getWidth(), previewSize.getHeight());
+                           camera.setDisplayOrientation(90);
+                          //  camera.setDisplayOrientation(0);
+
+                            camera.setParameters(parameters);
+                            camera.setPreviewTexture(texture);
+                        } catch (IOException exception) {
+                            camera.release();
                         }
-                        List<Camera.Size> cameraSizes = parameters.getSupportedPreviewSizes();
-                        Size[] sizes = new Size[cameraSizes.size()];
-                        int i = 0;
-                        for (Camera.Size size : cameraSizes) {
-                            sizes[i++] = new Size(size.width, size.height);
+
+                        camera.setPreviewCallbackWithBuffer(imageListener);
+                        Camera.Size s = camera.getParameters().getPreviewSize();
+                        camera.addCallbackBuffer(new byte[ImageUtils.getYUVByteSize(s.height, s.width)]);
+
+                        textureView.setAspectRatio(s.height, s.width);
+
+                        if(thread == null)
+                        {
+                            thread = new Thread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        thread.sleep(2000);
+                                        camera.startPreview();
+                                    }
+                                    catch (InterruptedException e)
+                                    {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            });
+                            thread.start();
                         }
-                        Size previewSize =
-                                CameraConnectionFragment.chooseOptimalSize(
-                                        sizes, desiredSize.getWidth(), desiredSize.getHeight());
-                        parameters.setPreviewSize(previewSize.getWidth(), previewSize.getHeight());
-                        camera.setDisplayOrientation(90);
-                        camera.setParameters(parameters);
-                        camera.setPreviewTexture(texture);
-                    } catch (IOException exception) {
-                        camera.release();
+
+
+                    } catch (Exception e) {
+                        stopCamera();
+                        e.printStackTrace();
                     }
-
-                    camera.setPreviewCallbackWithBuffer(imageListener);
-                    Camera.Size s = camera.getParameters().getPreviewSize();
-                    camera.addCallbackBuffer(new byte[ImageUtils.getYUVByteSize(s.height, s.width)]);
-
-                    textureView.setAspectRatio(s.height, s.width);
-
-                    camera.startPreview();
                 }
 
                 @Override
                 public void onSurfaceTextureSizeChanged(
                         final SurfaceTexture texture, final int width, final int height) {
+
                 }
 
                 @Override
                 public boolean onSurfaceTextureDestroyed(final SurfaceTexture texture) {
+                    stopCamera();
                     return true;
                 }
 
@@ -137,13 +177,38 @@ public class LegacyCameraConnectionFragment extends Fragment {
      * An additional thread for running tasks that shouldn't block the UI.
      */
     private HandlerThread backgroundThread;
+    private Thread thread;
+
+    public static LegacyCameraConnectionFragment newInstance( final Camera.PreviewCallback imageListener, final int layout, final Size desiredSize, int facing) {
+        LegacyCameraConnectionFragment f = new LegacyCameraConnectionFragment();
+        f.imageListener = imageListener;
+        f.layout = layout;
+        f.desiredSize = desiredSize;
+        f.facing = facing;
+        usefacing = (facing == CameraCharacteristics.LENS_FACING_BACK) ?
+                Camera.CameraInfo.CAMERA_FACING_BACK :
+                Camera.CameraInfo.CAMERA_FACING_FRONT;
+
+        return f;
+    }
+
+    public LegacyCameraConnectionFragment()
+    {
+
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+    @Override
+    public void onSaveInstanceState(Bundle state) {
+        state.putInt("layout", layout);
+        state.putSize("desiredSize", desiredSize);
+        state.putInt("facing", facing);
+        super.onSaveInstanceState(state);    }
 
     public LegacyCameraConnectionFragment(
             final Camera.PreviewCallback imageListener, final int layout, final Size desiredSize, int facing) {
-        this.imageListener = imageListener;
-        this.layout = layout;
-        this.desiredSize = desiredSize;
-        this.facing = facing;
+
+         Log.d("LegacyCameraConnectionFragment face camera id: ", String.valueOf(facing));
 
     }
 
@@ -158,6 +223,12 @@ public class LegacyCameraConnectionFragment extends Fragment {
     @Override
     public View onCreateView(
             final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
+        if (savedInstanceState != null) {
+            layout = savedInstanceState.getInt("layout");
+            desiredSize = savedInstanceState.getSize("desiredSize");
+            facing = savedInstanceState.getInt("facing");
+
+        }
         return inflater.inflate(layout, container, false);
 
     }
@@ -183,9 +254,53 @@ public class LegacyCameraConnectionFragment extends Fragment {
 
         if (textureView.isAvailable()) {
             if (camera != null) {
-                camera.startPreview();
+                try {
+                    camera.startPreview();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    stopBackgroundThread();
+                    onDestroy();
+
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                FaceDetectorPreview faceDetector = new FaceDetectorPreview(getContext(), usefacing);
+                                try {
+                                    Intent ackIntent = new Intent(ContantValues.ACTIVITY_RESUMED.getEventCodeString());
+                                    LocalBroadcastManager.getInstance(getContext()).sendBroadcast(ackIntent);
+                                } catch (Exception e1) {
+                                    Log.e("Error broadcasting " + ContantValues.ACTIVITY_RESUMED.getEventCodeString()
+                                            + " : ", e1.toString());
+                                }
+                            }
+
+
+
+                }
             } else {
-                startActivity(new Intent(this.getActivity(), DetectorActivity.class));
+                Toast.makeText(getContext(), "back", Toast.LENGTH_SHORT).show();
+                Log.d("On resume facedetector camera nit avaialble", String.valueOf(textureView.isAvailable()));
+
+                try {
+                    Intent ackIntent = new Intent(ContantValues.ACTIVITY_PAUSED.getEventCodeString());
+                    LocalBroadcastManager.getInstance(getContext()).sendBroadcast(ackIntent);
+                } catch (Exception e) {
+                    Log.e("Error broadcasting " + ContantValues.ACTIVITY_PAUSED.getEventCodeString()
+                            + " : ", e.toString());
+                }
+                onDestroy();
+
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                    FaceDetectorPreview faceDetector = new FaceDetectorPreview(getContext(), usefacing);
+                    Log.d("On resume facedetector start again", String.valueOf(textureView.isAvailable()));
+                    try {
+                        Log.d("On resume  broadcast st./art again", String.valueOf(textureView.isAvailable()));
+                        Intent ackIntent = new Intent(ContantValues.ACTIVITY_RESUMED.getEventCodeString());
+                        LocalBroadcastManager.getInstance(getContext()).sendBroadcast(ackIntent);
+                    } catch (Exception e1) {
+                        Log.e("Error broadcasting " + ContantValues.ACTIVITY_RESUMED.getEventCodeString()
+                                + " : ", e1.toString());
+                    }
+                }
+
             }
 
         } else {
@@ -195,10 +310,10 @@ public class LegacyCameraConnectionFragment extends Fragment {
 
     @Override
     public void onPause() {
-        //stopCamera();
-        if (camera != null) {
-            camera.stopPreview();
-        }
+        stopCamera();
+//        if (camera != null) {
+//            camera.stopPreview();
+//        }
         stopBackgroundThread();
         super.onPause();
     }
@@ -221,8 +336,9 @@ public class LegacyCameraConnectionFragment extends Fragment {
      * Stops the background thread and its {@link Handler}.
      */
     private void stopBackgroundThread() {
-        backgroundThread.quitSafely();
+
         try {
+            backgroundThread.quitSafely();
             backgroundThread.join();
             backgroundThread = null;
         } catch (final InterruptedException e) {
@@ -236,6 +352,10 @@ public class LegacyCameraConnectionFragment extends Fragment {
             camera.setPreviewCallback(null);
             camera.release();
             camera = null;
+        }
+        if (thread != null) {
+            thread.interrupt();
+            thread = null;
         }
     }
 

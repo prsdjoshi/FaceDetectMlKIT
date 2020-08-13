@@ -16,12 +16,14 @@
 
 package com.commodity.facedetectmlkit.kioskdemo;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
@@ -31,8 +33,10 @@ import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.hardware.camera2.CameraCharacteristics;
 import android.media.ImageReader.OnImageAvailableListener;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.text.Layout;
@@ -48,16 +52,19 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.MediaController;
 import android.widget.RelativeLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.VideoView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 
 import com.commodity.facedetectmlkit.CameraActivity;
 import com.commodity.facedetectmlkit.R;
+import com.commodity.facedetectmlkit.customview.AutoResizeTextView;
 import com.commodity.facedetectmlkit.customview.OverlayView;
 import com.commodity.facedetectmlkit.env.BorderedText;
 import com.commodity.facedetectmlkit.env.ImageUtils;
@@ -75,11 +82,16 @@ import com.google.mlkit.vision.face.FaceDetector;
 import com.google.mlkit.vision.face.FaceDetectorOptions;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
+import static android.media.MediaExtractor.MetricsConstants.FORMAT;
+import static android.view.View.VISIBLE;
 import static com.commodity.facedetectmlkit.tracking.MultiBoxTracker.frameToCanvasMatrix;
 
 /**
@@ -100,7 +112,7 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
     private static final float MINIMUM_CONFIDENCE_TF_OD_API = 0.5f;
     private static final boolean MAINTAIN_ASPECT = false;
 
-    private static final Size DESIRED_PREVIEW_SIZE = new Size(1920, 1080);
+    private static Size DESIRED_PREVIEW_SIZE = null;
     //private static final int CROP_SIZE = 320;
     //private static final Size CROP_SIZE = new Size(320, 320);
 
@@ -152,24 +164,48 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
     Context context;
     private FrameLayout frameLayout;
     private boolean isPreviewVisible = false;
+    private String temperature =null;
+    private boolean isNormalTemperature = false;
+    private VideoView videoview;
+    private final float THRESHOLD = 0.75f;
+    private ImageView capturedPhoto;
+    private CountDownTimer countDownTimer;
+    private AutoResizeTextView txtBeforeAfterFaceDetection;
+    private static final String FORMAT = "%02d:%02d";
+    public boolean isStartDetection = true;
+
+    @Override
+    protected void setupCamera() {
+        if (true) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                DESIRED_PREVIEW_SIZE= new Size(1920, 1080);
+            }
+        }
+    }
 
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-   public FaceDetectorPreview(Context context, Integer Facing) {
+    public FaceDetectorPreview(Context context, Integer Facing) {
         super(context, Facing);
         this.context = context;
         activity = (Activity) context;
-
 
         Log.d("window width: ", String.valueOf(activity.getWindow().getWindowManager().getDefaultDisplay().getWidth()));
         Log.d("window height: ", String.valueOf(activity.getWindow().getWindowManager().getDefaultDisplay().getHeight()));
         // Real-time contour detection of multiple faces
         FaceDetectorOptions options =
                 new FaceDetectorOptions.Builder()
-                        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-                        .setContourMode(FaceDetectorOptions.LANDMARK_MODE_NONE)
-                        .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_NONE)
+                        //.setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+                      //  .setContourMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+                        .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
+                       // .setMinFaceSize(0.30f)
+                    //    .setMinFaceSize(0.15f)
+                        .enableTracking()
                         .build();
 
+//        FaceDetectorOptions realTimeOpts =
+//                new FaceDetectorOptions.Builder()
+//                        .setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
+//                        .build();
 
         FaceDetector detector = FaceDetection.getClient(options);
 
@@ -260,10 +296,19 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
 
         Log.d("Desired Width: ",DESIRED_PREVIEW_SIZE.getWidth()+" Height: "+DESIRED_PREVIEW_SIZE.getHeight());
         trackingOverlay = (OverlayView) activity.findViewById(R.id.tracking_overlay);
-
+        capturedPhoto = (ImageView)activity.findViewById(R.id.faceimage);
         frameLayout =(FrameLayout) activity.findViewById(R.id.rectcontainer);
+        videoview =(VideoView) activity.findViewById(R.id.videoview);
+        Uri uri = Uri.parse("android.resource://"+activity.getPackageName()+"/"+R.raw.full_screen_google);
+        videoview.setVideoURI(uri);
+        videoview.setMediaController(new MediaController(context));
+        videoview.requestFocus();
+        videoview.setLayoutParams(new RelativeLayout.LayoutParams(1920, 1080));
+        videoview.start();
+
         RelativeLayout.LayoutParams capturePhotoFrameLayout = new RelativeLayout.LayoutParams(1, 1);
         frameLayout.setLayoutParams(capturePhotoFrameLayout);
+        txtBeforeAfterFaceDetection = (AutoResizeTextView) activity.findViewById(R.id.txtBeforeFaceDetection);
 
         txt_temp = (TextView) activity.findViewById(R.id.txt_temp);
         lay_bottom = (LinearLayout) activity.findViewById(R.id.lay_bottom);
@@ -313,26 +358,42 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
         lay_msg.addView(imagemsg);
         lay_msg.addView(txt_msg);
 
-        lay_mask.measure(0,0);
-        lay_msg.measure(0,0);
-        float mskTextsize = getAutoResize(txt_mask,ContantValues.MASK_NOTFOUND_LABEL.getEventCodeString(),lay_mask.getMeasuredWidth(),lay_mask.getMeasuredHeight(),0.5f);
-        float msgTextsize = getAutoResize(txt_msg,ContantValues.NOTPERMIT_LABEL.getEventCodeString(), (int) (lay_msg.getMeasuredWidth() * 0.8),lay_msg.getMeasuredHeight(),0.5f);
-        txt_mask.setTextSize(mskTextsize);
-        txt_msg.setTextSize(msgTextsize);
-        txt_temp.setTextSize(mskTextsize);
 
-        setValue("Welcome to Xtreme Media");
+        txt_mask.setTextSize(TypedValue.COMPLEX_UNIT_PX, 150);
+        txt_msg.setTextSize(TypedValue.COMPLEX_UNIT_PX, 150);
+        txt_temp.setTextSize(TypedValue.COMPLEX_UNIT_PX, 150);
+        lay_mask.measure(0, 0);
+        lay_msg.measure(0, 0);
+        float mskTextsize = getAutoResize(txt_mask,ContantValues.MASK_NOTFOUND_LABEL.getEventCodeString(),lay_mask.getMeasuredWidth()/2,lay_mask.getMeasuredHeight(),1.0f);
+        float msgTextsize = getAutoResize(txt_msg,ContantValues.NOTPERMIT_LABEL.getEventCodeString(), (int) (lay_msg.getMeasuredWidth() /2),lay_msg.getMeasuredHeight(),1.0f);
+//        txt_mask.setTextSize(mskTextsize);
+//        txt_msg.setTextSize(msgTextsize);
+//        txt_temp.setTextSize(mskTextsize);
+        txt_mask.setTextSize(TypedValue.COMPLEX_UNIT_PX, mskTextsize);
+        txt_msg.setTextSize(TypedValue.COMPLEX_UNIT_PX, msgTextsize);
+        txt_temp.setTextSize(TypedValue.COMPLEX_UNIT_PX, mskTextsize);
+
+
+//        ImageView imageView = (ImageView)activity.findViewById(R.id.faceimage);
+//        imageView.setImageDrawable(context.getResources().getDrawable(R.drawable.face_cut));
+//        LinearLayout.LayoutParams facecutParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+//        facecutParams.setMargins((int) FixedValues.RECT_POS_LEFT,
+//                (int) FixedValues.RECT_POS_TOP,(int) FixedValues.RECT_POS_RIGHT,
+//                (int) FixedValues.RECT_POS_BOTTOM);
+//        imageView.setLayoutParams(params);
+
+        setValue("");
 
         trackingOverlay.addCallback(
-                new OverlayView.DrawCallback() {
-                    @Override
-                    public void drawCallback(final Canvas canvas) {
-                        tracker.draw(canvas);
-                        if (isDebug()) {
-                            tracker.drawDebug(canvas);
-                        }
+            new OverlayView.DrawCallback() {
+                @Override
+                public void drawCallback(final Canvas canvas) {
+                    tracker.draw(canvas);
+                    if (isDebug()) {
+                        tracker.drawDebug(canvas);
                     }
-                });
+                }
+            });
 
         tracker.setFrameConfiguration(previewWidth, previewHeight, sensorOrientation);
     }
@@ -380,51 +441,119 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
 
         return params;
     }
-
+    boolean isNormal(double x, double max) {
+        return x <= max;
+    }
+    @SuppressLint("LongLogTag")
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     public void setValue(String ispermit)
     {
-        final String detected_temp_value =
-                !TextUtils.isEmpty(ContantValues.DETECTED_TEMPERATURE.getEventCodeString())
-                        ? String.format("Temperature: %s °C", ContantValues.DETECTED_TEMPERATURE.getEventCodeString())
-                        : "";
-
         try {
-            if(ispermit.equalsIgnoreCase(ContantValues.PREVIEW_MASK_LABEL.getEventCodeString()))
+            if(ispermit.equalsIgnoreCase(""))
             {
+                isNoface_inRect = false;
+                isNoface_outRect = false;
+                txt_temp.setVisibility(View.GONE);
+                lay_bottom.setVisibility(View.GONE);
+                return;
+            }
+            String detected_temp_value =
+                    temperature != null && !temperature.equalsIgnoreCase("")
+                            ? String.format("Temperature: %s °F", temperature)
+                            : "";
+
+            Log.d("FaceDetection- setValueToView detected_temp_value: ", detected_temp_value);
+            Log.d("FaceDetection- setValueToView isMask: ", ispermit);
+
+            if(!detected_temp_value.equalsIgnoreCase(""))
+            {
+                isNormalTemperature = isNormal(Double.parseDouble(temperature), Double.parseDouble(String.valueOf("98.5")));
+            }
+            else {
+                isNormalTemperature = false;
+            }
+
+
+            if(detected_temp_value.equalsIgnoreCase(""))
+            {
+                if (ispermit.equalsIgnoreCase("mask")) {
                     imagemsg.setImageDrawable(activity.getResources().getDrawable(R.drawable.ic_checked));
                     lay_msg.setBackgroundColor(activity.getResources().getColor(R.color.green));
                     txt_msg.setText(ContantValues.PERMIT_LABEL.getEventCodeString());
                     txt_mask.setText(ContantValues.MASK_FOUND_LABEL.getEventCodeString());
                     txt_temp.setBackgroundTintList(ColorStateList.valueOf(activity.getResources().getColor(R.color.yellow_semi_transparent)));
                     txt_temp.setTextColor(activity.getResources().getColor(R.color.black));
-                    txt_temp.setText(detected_temp_value);
-                    txt_temp.setVisibility(View.VISIBLE);
+                    txt_temp.setVisibility(View.GONE);
                     lay_bottom.setVisibility(View.VISIBLE);
-
-            }else if(ispermit.equalsIgnoreCase(ContantValues.PREVIEW_NOMASK_LABEL.getEventCodeString()))
-            {
+                }
+                else if (ispermit.equalsIgnoreCase("no mask")) {
                     imagemsg.setImageDrawable(activity.getResources().getDrawable(R.drawable.ic_stop));
                     lay_msg.setBackgroundColor(activity.getResources().getColor(R.color.red));
                     txt_msg.setText(ContantValues.NOTPERMIT_LABEL.getEventCodeString());
                     txt_mask.setText(ContantValues.MASK_NOTFOUND_LABEL.getEventCodeString());
                     txt_temp.setBackgroundTintList(ColorStateList.valueOf(activity.getResources().getColor(R.color.red)));
                     txt_temp.setTextColor(activity.getResources().getColor(R.color.white));
-                    txt_temp.setText(detected_temp_value);
-                    txt_temp.setVisibility(View.VISIBLE);
+                    txt_temp.setVisibility(View.GONE);
                     lay_bottom.setVisibility(View.VISIBLE);
-            }else {
-                    isNoface_inRect =false;
+                }else {
+                    isNoface_inRect = false;
                     isNoface_outRect = false;
-//                    lay_msg.setBackgroundColor(getResources().getColor(R.color.black_semi_transparent));
-//                    txt_msg.setText(ContantValues.DEFAULT_MESSAGE.getEventCodeString());
-//
-//                    txt_mask.setText("");
-//                    imagemsg.setVisibility(View.GONE);
-//                    txt_temp.setVisibility(View.GONE);
+                    txt_temp.setVisibility(View.GONE);
+                    lay_bottom.setVisibility(View.GONE);
+                }
+            }
+            else if(isNormalTemperature && ispermit.equalsIgnoreCase("mask"))
+            {
+                imagemsg.setImageDrawable(activity.getResources().getDrawable(R.drawable.ic_checked));
+                lay_msg.setBackgroundColor(activity.getResources().getColor(R.color.green));
+                txt_msg.setText(ContantValues.PERMIT_LABEL.getEventCodeString());
+                txt_mask.setText(ContantValues.MASK_FOUND_LABEL.getEventCodeString());
+                txt_temp.setBackgroundTintList(ColorStateList.valueOf(activity.getResources().getColor(R.color.yellow_semi_transparent)));
+                txt_temp.setTextColor(activity.getResources().getColor(R.color.black));
+                txt_temp.setText(detected_temp_value);
+                txt_temp.setVisibility(View.VISIBLE);
+                lay_bottom.setVisibility(View.VISIBLE);
+
+            }
+            else if (!isNormalTemperature && ispermit.equalsIgnoreCase("mask")) {
+                imagemsg.setImageDrawable(activity.getResources().getDrawable(R.drawable.ic_stop));
+                lay_msg.setBackgroundColor(activity.getResources().getColor(R.color.red));
+                txt_msg.setText(ContantValues.NOTPERMIT_LABEL.getEventCodeString());
+                txt_mask.setText(ContantValues.MASK_NOTFOUND_LABEL.getEventCodeString());
+                txt_temp.setBackgroundTintList(ColorStateList.valueOf(activity.getResources().getColor(R.color.red)));
+                txt_temp.setTextColor(activity.getResources().getColor(R.color.white));
+                txt_temp.setText(detected_temp_value);
+                txt_temp.setVisibility(View.VISIBLE);
+                lay_bottom.setVisibility(View.VISIBLE);
+            }
+            else if (isNormalTemperature && ispermit.equalsIgnoreCase("no mask")) {
+                imagemsg.setImageDrawable(activity.getResources().getDrawable(R.drawable.ic_stop));
+                lay_msg.setBackgroundColor(activity.getResources().getColor(R.color.red));
+                txt_msg.setText(ContantValues.NOTPERMIT_LABEL.getEventCodeString());
+                txt_mask.setText(ContantValues.MASK_NOTFOUND_LABEL.getEventCodeString());
+                txt_temp.setBackgroundTintList(ColorStateList.valueOf(activity.getResources().getColor(R.color.red)));
+                txt_temp.setTextColor(activity.getResources().getColor(R.color.white));
+                txt_temp.setText(detected_temp_value);
+                txt_temp.setVisibility(View.VISIBLE);
+                lay_bottom.setVisibility(View.VISIBLE);
+            }
+            else if (!isNormalTemperature && ispermit.equalsIgnoreCase("no mask")) {
+                imagemsg.setImageDrawable(activity.getResources().getDrawable(R.drawable.ic_stop));
+                lay_msg.setBackgroundColor(activity.getResources().getColor(R.color.red));
+                txt_msg.setText(ContantValues.NOTPERMIT_LABEL.getEventCodeString());
+                txt_mask.setText(ContantValues.MASK_NOTFOUND_LABEL.getEventCodeString());
+                txt_temp.setBackgroundTintList(ColorStateList.valueOf(activity.getResources().getColor(R.color.red)));
+                txt_temp.setTextColor(activity.getResources().getColor(R.color.white));
+                txt_temp.setText(detected_temp_value);
+                txt_temp.setVisibility(View.VISIBLE);
+                lay_bottom.setVisibility(View.VISIBLE);
+            }
+            else {
+                isNoface_inRect = false;
+                isNoface_outRect = false;
                 txt_temp.setVisibility(View.GONE);
                 lay_bottom.setVisibility(View.GONE);
-
+                isNormalTemperature = false;
             }
         } catch (Resources.NotFoundException e) {
             e.printStackTrace();
@@ -465,70 +594,102 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
 
         InputImage image = InputImage.fromBitmap(croppedBitmap, 0);
         faceDetector
-                .process(image)
-                .addOnSuccessListener(new OnSuccessListener<List<Face>>() {
-                    @Override
-                    public void onSuccess(List<Face> faces) {
-                        if (faces.size() == 0) {
-                            if(isNoface_inRect)
-                            {
-                                Log.d("Face Detection: ", String.valueOf(faces.size()));
+                    .process(image)
+                    .addOnSuccessListener(new OnSuccessListener<List<Face>>() {
+                        @Override
+                        public void onSuccess(List<Face> faces) {
+                            Log.d("Face Detection isStartDetection: ", String.valueOf(isStartDetection));
+
+                            if (faces.size() == 0) {
+                                if(isNoface_inRect)
+                                {
+                                    Log.d("Face Detection: ", String.valueOf(faces.size()));
+
+                                    activity.runOnUiThread(
+                                            new Runnable() {
+                                                @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+                                                @Override
+                                                public void run() {
+                                                    setValue("");
+                                                    array_probability.clear();
+                                                }});
+                                }
+                                activity.runOnUiThread(
+                                        new Runnable() {
+                                            @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+                                            @Override
+                                            public void run() {
+                                                if(isPreviewVisible)
+                                                {
+                                                    int duration = (1000 * 3);
+                                                    previewHandler.postDelayed(runnableFaceDetectorPreview, duration);
+                                                }
+                                            }
+                                        });
+                                updateResults(currTimestamp, new LinkedList<>());
+                                return;
+                            }else {
 
                                 activity.runOnUiThread(
                                         new Runnable() {
                                             @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
                                             @Override
                                             public void run() {
-                                                setValue("Welcome to Xtreme Media");
-                                                array_probability.clear();
+                                                if (previewHandler != null) {
+                                                    previewHandler.removeCallbacks(runnableFaceDetectorPreview);
+                                                }
+                                                boolean isopen =isEyeOpen(faces);
+                                                if(!isPreviewVisible && isopen)
+                                                {
+                                                    LOGGER.i("FACE EyeOpenProb isEyeOpen" + isopen);
+                                                    setFullCameraPreview();
+                                                }
                                             }});
+
                             }
-                            activity.runOnUiThread(
+                            runInBackground(
                                     new Runnable() {
-                                        @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
                                         @Override
                                         public void run() {
-                                            if(isPreviewVisible)
-                                            {
-                                                int duration = (1000 * 3);
-                                                previewHandler.postDelayed(runnableFaceDetectorPreview, duration);
-                                            }
-                                       }
+
+                                            Log.d("Face Detection: ", String.valueOf(faces.size()));
+                                            onFacesDetected(currTimestamp, faces);
+                                        }
                                     });
-                            updateResults(currTimestamp, new LinkedList<>());
-                            return;
-                        }else {
-                            activity.runOnUiThread(
-                                    new Runnable() {
-                                        @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-                                        @Override
-                                        public void run() {
-                                            if (previewHandler != null) {
-                                                previewHandler.removeCallbacks(runnableFaceDetectorPreview);
-                                            }
-                                            if(!isPreviewVisible)
-                                            {
-                                                setFullCameraPreview();
-                                            }
-                                        }});
-
                         }
-                        runInBackground(
-                                new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        Log.d("Face Detection: ", String.valueOf(faces.size()));
-                                        onFacesDetected(currTimestamp, faces);
-                                    }
-                                });
-                    }
 
-                });
+                    });
+
+
 
 
     }
+    public boolean isEyeOpen(List<Face> faceList)
+    {
+        boolean isOpen = false;
+        if(faceList.size()>0)
+        {
+            try {
+                Face face = faceList.get(0);
+                LOGGER.i("FACE EyeOpenProb right" + face.getRightEyeOpenProbability());
+                LOGGER.i("FACE EyeOpenProb left" + face.getRightEyeOpenProbability());
+                float lefteye = face.getLeftEyeOpenProbability();
+                float righteye = face.getRightEyeOpenProbability();
+                if (Float.compare(lefteye, THRESHOLD) > 0 && Float.compare(righteye, THRESHOLD) > 0)
+                {
+                    isOpen= true;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+//            if (face.getLeftEyeOpenProbability() > 0.75f || face.getRightEyeOpenProbability() > 0.75f) {
+//            }
+        }
+        return isOpen;
+    }
     private Runnable runnableFaceDetectorPreview = new Runnable() {
 
+        @SuppressLint("LongLogTag")
         @Override
         public void run() {
             try {
@@ -543,15 +704,18 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
     };
 
     private void setFullCameraPreview() {
+        isStartDetection = true;
         isPreviewVisible=true;
         RelativeLayout.LayoutParams capturePhotoFrameLayout = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         frameLayout.setLayoutParams(capturePhotoFrameLayout);
+        changeMessage(true);
     }
 
     private void setInvisibleCameraPreview() {
         isPreviewVisible=false;
         RelativeLayout.LayoutParams capturePhotoFrameLayout = new RelativeLayout.LayoutParams(1, 1);
         frameLayout.setLayoutParams(capturePhotoFrameLayout);
+        changeMessage(false);
     }
 
     @Override
@@ -561,6 +725,7 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
 
     @Override
     protected Size getDesiredPreviewFrameSize() {
+        Log.d("DESIRED_PREVIEW_SIZE: ", String.valueOf(DESIRED_PREVIEW_SIZE));
         return DESIRED_PREVIEW_SIZE;
     }
 
@@ -636,21 +801,12 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
                         if(mappedRecognitions.size()>0)
                         {
                             array_probability.add(mappedRecognitions.get(0).getTitle());
-                            if(array_probability.size()>5)
+                            if(array_probability.size()>3)
                             {
                                 isNoface_inRect =true;
-//                                //isNoface_outRect =true;
-//                                int countyes= Collections.frequency(array_probability, "mask");
-//                                int countno = Collections.frequency(array_probability, "no mask");
-//                                //Log.d("count yes:",String.valueOf(countyes)+" , no:"+String.valueOf(countno));
-//                                if(countyes>countno)
-//                                {
-//                                    setValue("mask");
-//                                }else {
-//                                    setValue("no mask");
-//                                }
                                 Log.d("count yes:",String.valueOf(Collections.max(array_probability)));
                                 setValue(Collections.max(array_probability));
+                                capturePreviewVisible();
                                 array_probability.clear();
                             }
                         }
@@ -660,6 +816,41 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
                     }
                 });
 
+    }
+
+    public void capturePreviewVisible()
+    {
+        isStartDetection = false;
+        capturedPhoto.setImageBitmap(croppedBitmap);
+        capturedPhoto.setVisibility(View.VISIBLE);
+        txtBeforeAfterFaceDetection.setVisibility(View.GONE);
+        countDownTimerStart();
+    }
+    private void countDownTimerStart() {
+        txt_temp.setVisibility(VISIBLE);
+        countDownTimer = new CountDownTimer(10000, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                txt_temp.setText("Please Move Hand to measure temperature " + String.format(FORMAT,
+                        TimeUnit.MILLISECONDS.toMinutes(millisUntilFinished) - TimeUnit.HOURS.toMinutes(
+                                TimeUnit.MILLISECONDS.toHours(millisUntilFinished)),
+                        TimeUnit.MILLISECONDS.toSeconds(millisUntilFinished) - TimeUnit.MINUTES.toSeconds(
+                                TimeUnit.MILLISECONDS.toMinutes(millisUntilFinished))));
+            }
+
+            @SuppressLint("ResourceAsColor")
+            @Override
+            public void onFinish() {
+
+                capturedPhoto.setImageBitmap(null);
+                capturedPhoto.setVisibility(View.GONE);
+                txt_temp.setVisibility(View.GONE);
+                setFullCameraPreview();
+                setValue("");
+
+            }
+        };
+        countDownTimer.start();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
@@ -710,7 +901,6 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
             LOGGER.i("FACE" + face.toString());
                // face.getBoundingBox().bottom
             LOGGER.i("Running detection on face " + currTimestamp);
-
             //results = detector.recognizeImage(croppedBitmap);
 
             //if(Right2 < Right1 && Left2 > Left1 && Top2 > Top1 && Bottom2 < Bottom1
@@ -780,6 +970,7 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
                         flip.mapRect(boundingBox);
 
                     }
+
                     RectF rect_check = new RectF(FixedValues.RECT_POS_LEFT,
                             FixedValues.RECT_POS_TOP,FixedValues.RECT_POS_RIGHT,
                             FixedValues.RECT_POS_BOTTOM);
@@ -795,37 +986,32 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
                                 String.valueOf(rect_face.top)+", bottom: "+String.valueOf(rect_face.bottom));
 
                         inRect++;
-                        final Classifier.Recognition result = new Classifier.Recognition(
-                                "0", label, confidence, boundingBox);
-                        result.setColor(color);
-                        result.setLocation(boundingBox);
-                        mappedRecognitions.add(result);
+
+                        int value_rectCheck = (int) (rect_check.width() * 0.5);
+                        if(value_rectCheck < rect_face.width())
+                        {
+                            final Classifier.Recognition result = new Classifier.Recognition(
+                                    "0", label, confidence, boundingBox,face);
+                            result.setColor(color);
+                            result.setLocation(boundingBox);
+                            result.setFace(face);
+                            mappedRecognitions.add(result);
+                            txtBeforeAfterFaceDetection.setText("Please stand steady to detect your face properly ");
+
+                        }
+                        else {
+                            txtBeforeAfterFaceDetection.setText("Please come closer to the circle");
+                        }
+
                     }
-//                    else {
-//                        runOnUiThread(
-//                                new Runnable() {
-//                                    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-//                                    @Override
-//                                    public void run()
-//                                    {
-//                                        if(isNoface_outRect)
-//                                        {
-//                                            setValue("Welcome to Xtreme Media");
-//                                            array_probability.clear();
-//                                        }
-//                                    }
-//                                });
-//
-//
-//                    }
+                    else {
+                      //  txtBeforeAfterFaceDetection.setText(ContantValues.AFTER_CAMERA_TRIGGERING_MSG.getEventCodeString());
+                    }
 
             }
 
         }
 
-        //    if (saved) {
-//      lastSaved = System.currentTimeMillis();
-//    }
 
         if(inRect==0)
         {
@@ -834,7 +1020,7 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
                         @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
                         @Override
                         public void run() {
-                            setValue("Welcome to Xtreme Media");
+                            setValue("");
                             array_probability.clear();
                         }});
         }
@@ -843,5 +1029,22 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
     private Matrix getFrameToCanvasMatrix() {
 
         return frameToCanvasMatrix;
+    }
+
+
+
+    private void changeMessage(boolean isFullScreen) {
+        try {
+            if(isFullScreen)
+            {
+                txtBeforeAfterFaceDetection.setText(ContantValues.AFTER_CAMERA_TRIGGERING_MSG.getEventCodeString());
+
+            }else {
+                txtBeforeAfterFaceDetection.setText(ContantValues.BEFORE_CAMERA_TRIGGERING_MSG.getEventCodeString());
+
+            }
+        } catch (Exception e) {
+            Log.e("Exception in changeMessage in FaceDetectorPreview : ", e.toString());
+        }
     }
 }

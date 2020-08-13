@@ -39,9 +39,18 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.1.0'
     implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
     implementation 'com.google.mlkit:face-detection:16.0.0'
+
     implementation('org.tensorflow:tensorflow-lite:0.0.0-nightly') { changing = true }
     implementation 'com.google.android.material:material:1.0.0'
     implementation files('libs/lambdaj-2.3.3.jar')
+    //Temperature sensor
+    implementation 'com.github.felHR85:UsbSerial:4.5.2'
+
+    //rxjava
+    implementation 'io.reactivex.rxjava2:rxandroid:2.1.0'
+    implementation 'io.reactivex.rxjava2:rxjava:2.2.4'
+    implementation 'io.reactivex:rxandroid:1.1.0'
+    api 'com.theartofdev.edmodo:android-image-cropper:2.8.+'
 
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'

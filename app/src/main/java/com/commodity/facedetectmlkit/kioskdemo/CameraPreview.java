@@ -17,6 +17,7 @@
 package com.commodity.facedetectmlkit.kioskdemo;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Fragment;
 import android.content.BroadcastReceiver;
@@ -62,6 +63,8 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.nio.ByteBuffer;
 
+import static com.commodity.facedetectmlkit.kioskdemo.FaceDetectorPreview.isStartDetection;
+
 @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
 public abstract class CameraPreview
         implements OnImageAvailableListener,
@@ -99,6 +102,7 @@ public abstract class CameraPreview
     }
 
     public CameraPreview (Context context,Integer Facing) {
+        setupCamera();
         LOGGER.d("onCameraStart " + this);
         this.context = context;
         activity = (Activity) context;
@@ -234,7 +238,8 @@ public abstract class CameraPreview
                         }
                     };
 
-            processImage();
+                processImage();
+
         } catch (final Exception e) {
             LOGGER.e(e, "Exception!");
             Trace.endSection();
@@ -337,7 +342,7 @@ public abstract class CameraPreview
             int facing = (useFacing == CameraCharacteristics.LENS_FACING_BACK) ?
                     Camera.CameraInfo.CAMERA_FACING_BACK :
                     Camera.CameraInfo.CAMERA_FACING_FRONT;
-            LegacyCameraConnectionFragment frag = new LegacyCameraConnectionFragment(this,
+            LegacyCameraConnectionFragment frag = LegacyCameraConnectionFragment.newInstance(this,
                     getLayoutId(),
                     getDesiredPreviewFrameSize(), facing);
             fragment = frag;
@@ -382,19 +387,42 @@ public abstract class CameraPreview
         }
     }
 
+    public void dispose()
+    {
+        try {
+            Intent ackIntent = new Intent(ContantValues.ACTIVITY_PAUSED.getEventCodeString());
+            LocalBroadcastManager.getInstance(context).sendBroadcast(ackIntent);
+        } catch (Exception e) {
+            Log.e("Error broadcasting " + ContantValues.ACTIVITY_PAUSED.getEventCodeString()
+                    + " : ", e.toString());
+        }
+    }
+
     private BroadcastReceiver activtyPaused = new BroadcastReceiver() {
 
         @Override
         public void onReceive(Context context, Intent intent) {
             try {
                 Log.d("Camera Preview: ","activtyPaused called");
-                handlerThread.quitSafely();
+
                 try {
-                    handlerThread.join();
-                    handlerThread = null;
-                    handler = null;
+                    if(handlerThread!=null)
+                    {
+                        handlerThread.quitSafely();
+                        handlerThread.join();
+                        handlerThread = null;
+
+                    }
+                    if(handler !=null)
+                    {
+                        handler = null;
+                    }
+
                 } catch (final InterruptedException e) {
                     //LOGGER.e(e, "Exception!");
+                    Log.e(
+                            "InterruptedException Error occured handling activtyPaused message : ", e.toString());
+
                 }
             } catch (Exception e) {
                 Log.e(
@@ -406,17 +434,27 @@ public abstract class CameraPreview
 
     private BroadcastReceiver activtyResumed = new BroadcastReceiver() {
 
+
+
+        @SuppressLint("LongLogTag")
         @Override
         public void onReceive(Context context, Intent intent) {
             try {
-                Log.d("Camera Preview: ","activtyResumed called");
-                handlerThread = new HandlerThread("inference");
-                handlerThread.start();
-                handler = new Handler(handlerThread.getLooper());
+                Log.d("Camera Preview: ", "activtyResumed called");
+                if(handlerThread == null)
+                {
+                    handlerThread = new HandlerThread("inference");
+                    handlerThread.start();
+                }
+                if(handler == null)
+                {
+                    handler = new Handler(handlerThread.getLooper());
+                }
 
             } catch (Exception e) {
-                Log.e(
-                        "Error occured handling activtyResumed message : ", e.toString());
+                Log.e("FaceDetection- Exception occured handling activtyResumed in CameraPreview: ", e.toString());
+
+
 
             }
         }
@@ -447,6 +485,8 @@ public abstract class CameraPreview
     protected abstract int getLayoutId();
 
     protected abstract Size getDesiredPreviewFrameSize();
+
+    protected abstract void setupCamera();
 
     protected abstract void setNumThreads(int numThreads);
 

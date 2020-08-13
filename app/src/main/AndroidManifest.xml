@@ -10,7 +10,8 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 <!--        <activity android:name=".kioskdemo.FaceDetectActivity"></activity>-->
-        <activity android:name=".kioskdemo.FaceDetectActivity">
+        <activity android:name=".kioskdemo.FaceDetectActivity"
+            >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -24,5 +25,7 @@
     <uses-feature android:name="android.hardware.camera" />
 
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
 </manifest>

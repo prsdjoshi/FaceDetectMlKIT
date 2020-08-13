@@ -22,27 +22,26 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
-    <com.commodity.facedetectmlkit.setting.resizablerectangle.DrawView
-        android:id="@+id/drawView1"
-        android:background="@android:color/transparent"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
-
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
+        <Button
             android:id="@+id/btnadd"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentBottom="true"
             android:layout_centerInParent="true"
             android:tint="#ffffff"
-            app:backgroundTint="@color/black_semi_transparent"
-            android:src="@drawable/ic_check_black_24dp"
+            android:background="@drawable/btn_circle_checked"
             android:layout_marginBottom="25dp"
             android:layout_marginRight="16dp"/>
+
+        <com.commodity.facedetectmlkit.setting.resizablerectangle.DrawView
+            android:id="@+id/drawView1"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent" />
 
     </RelativeLayout>
 </FrameLayout>

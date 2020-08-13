@@ -35,6 +35,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Trace;
+import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
 import android.view.View;
@@ -45,6 +46,7 @@ import android.widget.Toast;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.math.MathUtils;
 
 import com.commodity.facedetectmlkit.env.ImageUtils;
 import com.commodity.facedetectmlkit.env.Logger;
@@ -131,7 +133,7 @@ public abstract class CameraActivity extends AppCompatActivity
 //    sheetBehavior = BottomSheetBehavior.from(bottomSheetLayout);
 //    bottomSheetArrowImageView = findViewById(R.id.bottom_sheet_arrow);
 
-    btnSwitchCam = findViewById(R.id.fab);
+      btnSwitchCam = findViewById(R.id.fab);
       setting_fab = findViewById(R.id.setting_fab);
 
 //    ViewTreeObserver vto = gestureLayout.getViewTreeObserver();
@@ -199,7 +201,7 @@ public abstract class CameraActivity extends AppCompatActivity
       setting_fab.setOnClickListener(new View.OnClickListener() {
           @Override
           public void onClick(View v) {
-              finish();
+                finish();
                 startActivity(new Intent(getApplicationContext(), ResizableRectangleActivity.class));
           }
       });
@@ -521,6 +523,7 @@ public abstract class CameraActivity extends AppCompatActivity
 
         Fragment fragment;
         if (useCamera2API) {
+            Log.d("CameraDevice setFragment: ", String.valueOf(useCamera2API));
             CameraConnectionFragment camera2Fragment =
                     CameraConnectionFragment.newInstance(
                             new CameraConnectionFragment.ConnectionCallback() {
@@ -539,8 +542,8 @@ public abstract class CameraActivity extends AppCompatActivity
             fragment = camera2Fragment;
 
         } else {
-
-          int facing = (useFacing == CameraCharacteristics.LENS_FACING_BACK) ?
+            Log.d("CameraDevice setFragment: ", String.valueOf(useCamera2API));
+            int facing = (useFacing == CameraCharacteristics.LENS_FACING_BACK) ?
                           Camera.CameraInfo.CAMERA_FACING_BACK :
                           Camera.CameraInfo.CAMERA_FACING_FRONT;
             LegacyCameraConnectionFragment frag = new LegacyCameraConnectionFragment(this,

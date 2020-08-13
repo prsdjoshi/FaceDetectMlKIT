@@ -24,6 +24,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -134,7 +135,8 @@ public class DrawView extends View {
                     point3.y + colorballs.get(2).getWidthOfBall() / 2, point3.x
                     + colorballs.get(2).getWidthOfBall() / 2, point1.y
                     + colorballs.get(0).getWidthOfBall() / 2);
-            canvas.drawRect(rect, paint);
+            RectF rectF = new RectF(rect);
+            canvas.drawRect(rectF, paint);
             left=rect.left;
             right=rect.right;
             top=rect.top;
@@ -144,7 +146,9 @@ public class DrawView extends View {
                     point4.y + colorballs.get(3).getWidthOfBall() / 2, point4.x
                     + colorballs.get(3).getWidthOfBall() / 2, point2.y
                     + colorballs.get(1).getWidthOfBall() / 2);
-            canvas.drawRect(rect, paint);
+          //  canvas.drawRect(rect, paint);
+            RectF rectF = new RectF(rect);
+            canvas.drawRect(rectF, paint);
             left=rect.left;
             right=rect.right;
             top=rect.top;
@@ -244,31 +248,39 @@ public class DrawView extends View {
                         if (radCircle < ball.getWidthOfBall()) {
 
                             balID = ball.getID();
-                            if (balID == 1 || balID == 3) {
+                                if (balID == 1 || balID == 3) {
 
 //                            if(point1.x<point3.x+50 && point1.y < point3.y+50)
 //                            {
                                 groupId = 2;
+                                Log.d("Rect Cord: point1.x-", String.valueOf(point1.x)+", point3.y-"+String.valueOf(point3.y)+", point3.x-"+String.valueOf(point3.x)+", point1.y-"+String.valueOf(point1.y));
+
                                 Rect rect=new Rect(point1.x, point3.y, point3.x, point1.y);
                                 left=rect.left;
                                 right=rect.right;
                                 top=rect.top;
                                 bottom=rect.bottom;
-                                canvas.drawRect(rect,
-                                        paint);
+                                RectF rectF = new RectF(rect);
+                                canvas.drawRect(rectF, paint);
+//                                canvas.drawRect(rect,
+//                                        paint);
                                 Log.d("DrawView ACTION_DOWN - if (radCircle < ball.getWidthOfBall()) = ", String.valueOf(point1.x + "," + point3.y + "," + point3.x + "," + point1.y));
 
                                 // }
 
                             } else {
                                 groupId = 1;
+                                Log.d("Rect Cord: point2.x-", String.valueOf(point2.x)+", point4.y-"+String.valueOf(point4.y)+", point4.x-"+String.valueOf(point4.x)+", point2.y-"+String.valueOf(point2.y));
+
                                 Rect rect=new Rect(point2.x, point4.y, point4.x, point2.y);
                                 left=rect.left;
                                 right=rect.right;
                                 top=rect.top;
                                 bottom=rect.bottom;
-                                canvas.drawRect(rect,
-                                        paint);
+//                                canvas.drawRect(rect,
+//                                        paint);
+                                RectF rectF = new RectF(rect);
+                                canvas.drawRect(rectF, paint);
                                 Log.d("DrawView ACTION_DOWN - else (radCircle < ball.getWidthOfBall()) = ", String.valueOf(point2.x + "," + point4.y + "," + point4.x + "," + point2.y));
 
                             }
@@ -303,8 +315,10 @@ public class DrawView extends View {
                                 right=rect.right;
                                 top=rect.top;
                                 bottom=rect.bottom;
-                                canvas.drawRect(rect,
-                                        paint);
+//                                canvas.drawRect(rect,
+//                                        paint);
+                                RectF rectF = new RectF(rect);
+                                canvas.drawRect(rectF, paint);
 
                                 Log.d("DrawView ACTION_MOVE - if (balID > -1) - if (groupId == 1) = ", String.valueOf(point1.x + "," + point3.y + "," + point3.x + "," + point1.y));
                             } else {
@@ -317,9 +331,10 @@ public class DrawView extends View {
                                 right=rect.right;
                                 top=rect.top;
                                 bottom=rect.bottom;
-                                canvas.drawRect(rect,
-                                        paint);
-
+//                                canvas.drawRect(rect,
+//                                        paint);
+                                RectF rectF = new RectF(rect);
+                                canvas.drawRect(rectF, paint);
                                 Log.d("DrawView ACTION_MOVE - if (balID > -1) - else (groupId == 1) = ", String.valueOf(point2.x + "," + point4.y + "," + point4.x + "," + point2.y));
                             }
 
@@ -347,21 +362,23 @@ public class DrawView extends View {
                                     right=rect.right;
                                     top=rect.top;
                                     bottom=rect.bottom;
-                                    canvas.drawRect(rect,
-                                            paint);
+//                                    canvas.drawRect(rect,
+//                                            paint);
                                     //    Log.d("DrawView ACTION_MOVE - else (balID > -1) - if (startMovePoint!=null) - if(groupId==1) = ", String.valueOf(point1.x + "," + point3.y + "," + point3.x + "," + point1.y));
 
-
+                                    RectF rectF = new RectF(rect);
+                                    canvas.drawRect(rectF, paint);
                                 } else {
                                     Rect rect=new Rect(point2.x, point4.y, point4.x, point2.y);
                                     left=rect.left;
                                     right=rect.right;
                                     top=rect.top;
                                     bottom=rect.bottom;
-                                    canvas.drawRect(rect,
-                                            paint);
+//                                    canvas.drawRect(rect,
+//                                            paint);
                                     //  Log.d("DrawView ACTION_MOVE - else (balID > -1) - if (startMovePoint!=null) - else(groupId==1) = ", String.valueOf(point2.x + "," + point4.y + "," + point4.x + "," + point2.y));
-
+                                    RectF rectF = new RectF(rect);
+                                    canvas.drawRect(rectF, paint);
                                 }
                                 invalidate();
                             }

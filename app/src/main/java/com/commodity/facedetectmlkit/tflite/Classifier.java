@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 package com.commodity.facedetectmlkit.tflite;
+import com.google.mlkit.vision.face.Face;
 
 import android.graphics.Bitmap;
 import android.graphics.RectF;
@@ -54,6 +55,15 @@ public interface Classifier {
     private RectF location;
     private Integer color;
 
+      public Face getFace() {
+          return face;
+      }
+
+      public void setFace(Face face) {
+          this.face = face;
+      }
+
+      private Face face;
     public Recognition(
             final String id, final String title, final Float confidence, final RectF location) {
       this.id = id;
@@ -62,6 +72,15 @@ public interface Classifier {
       this.location = location;
       this.color = null;
     }
+      public Recognition(
+              final String id, final String title, final Float confidence, final RectF location,Face face) {
+          this.id = id;
+          this.title = title;
+          this.confidence = confidence;
+          this.location = location;
+          this.color = null;
+          this.face = face;
+      }
 
     public void setColor(Integer color) {
        this.color = color;
