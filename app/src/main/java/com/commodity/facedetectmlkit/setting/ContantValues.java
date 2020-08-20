@@ -17,7 +17,9 @@ public enum ContantValues {
     BEFORE_CAMERA_TRIGGERING_MSG("Please Come In Front Of The Camera"),
     AFTER_CAMERA_TRIGGERING_MSG("Adjust Your Face In The Circle"),
     ACTIVITY_PAUSED("ACTIVITY_PAUSED"),
-    ACTIVITY_RESUMED("ACTIVITY_RESUMED");
+    ACTIVITY_RESUMED("ACTIVITY_RESUMED"),
+    SS_CAPTURED_SET("SS_CAPTURED_SET"),
+    SS_CAPTURED("SS_CAPTURED");
 
     private String eventCodeString;
     private int eventCodeInteger;

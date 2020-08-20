@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
+    android:id="@+id/legacyframelay"
     android:layout_height="match_parent">
 
     <com.commodity.facedetectmlkit.customview.AutoFitTextureView
@@ -20,7 +21,6 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:id="@+id/faceimage"
-            android:tint="@color/green"
             android:scaleType="fitXY"
             android:visibility="visible"
             />
@@ -32,12 +32,13 @@
             android:layout_centerInParent="true"
             android:layout_above="@+id/lay_bottom"
             android:layout_marginBottom="50dp"
-            android:visibility="gone"
+            android:visibility="visible"
+            android:gravity="center"
             android:backgroundTint="@color/red"
             android:background="@drawable/round_rectangle"
             android:padding="5dp"
             android:textColor="@color/white"
-            android:text="Temperature: 38.2 °C"></TextView>
+            android:text="Sense your Temperature: 38.2 °C"></TextView>
 
         <LinearLayout
             android:layout_width="match_parent"

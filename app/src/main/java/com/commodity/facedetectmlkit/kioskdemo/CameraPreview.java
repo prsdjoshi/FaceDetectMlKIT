@@ -63,7 +63,6 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.nio.ByteBuffer;
 
-import static com.commodity.facedetectmlkit.kioskdemo.FaceDetectorPreview.isStartDetection;
 
 @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
 public abstract class CameraPreview

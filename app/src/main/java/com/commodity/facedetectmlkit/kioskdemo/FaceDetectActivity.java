@@ -1,5 +1,6 @@
 package com.commodity.facedetectmlkit.kioskdemo;
 
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
@@ -11,6 +12,7 @@ import android.content.pm.PackageManager;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
 import android.hardware.camera2.CameraCharacteristics;
+import android.media.projection.MediaProjectionManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -33,6 +35,7 @@ import android.widget.Toast;
 
 import com.commodity.facedetectmlkit.R;
 import com.commodity.facedetectmlkit.customview.AutoResizeTextView;
+import com.commodity.facedetectmlkit.customview.CaptureService;
 import com.commodity.facedetectmlkit.setting.ContantValues;
 import com.commodity.facedetectmlkit.setting.resizablerectangle.ResizableRectangleActivity;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -68,12 +71,20 @@ public class FaceDetectActivity extends AppCompatActivity {
     private static final ScheduledExecutorService worker =
             Executors.newSingleThreadScheduledExecutor();
     private static final Size DESIRED_PREVIEW_SIZE = new Size(1920, 1080);
+    public static final int REQUEST_MEDIA_PROJECTION = 18;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_face_detect);
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            MediaProjectionManager mediaProjectionManager = (MediaProjectionManager)
+                    getSystemService(MEDIA_PROJECTION_SERVICE);
+            startActivityForResult(
+                    mediaProjectionManager.createScreenCaptureIntent(),
+                    REQUEST_MEDIA_PROJECTION);
+        }
         Intent intent = getIntent();
         useFacingView = intent.getIntExtra(KEY_USE_FACING, CameraCharacteristics.LENS_FACING_BACK);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -100,7 +111,22 @@ public class FaceDetectActivity extends AppCompatActivity {
         });
 
     }
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
 
+        switch (requestCode) {
+            case REQUEST_MEDIA_PROJECTION:
+
+                if (resultCode == RESULT_OK && data != null) {
+                    CaptureService.setResultData(data);
+                    startService(new Intent(this, CaptureService.class));
+                }
+                break;
+        }
+
+    }
     @SuppressLint("LongLogTag")
     private void setTextBeforeFaceDetection() {
         try {
