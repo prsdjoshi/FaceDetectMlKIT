@@ -179,7 +179,8 @@ public class LegacyCameraConnectionFragment extends Fragment {
     private HandlerThread backgroundThread;
     private Thread thread;
 
-    public static LegacyCameraConnectionFragment newInstance( final Camera.PreviewCallback imageListener, final int layout, final Size desiredSize, int facing) {
+    @SuppressLint("LongLogTag")
+    public static LegacyCameraConnectionFragment newInstance(final Camera.PreviewCallback imageListener, final int layout, final Size desiredSize, int facing) {
         LegacyCameraConnectionFragment f = new LegacyCameraConnectionFragment();
         f.imageListener = imageListener;
         f.layout = layout;
@@ -188,7 +189,9 @@ public class LegacyCameraConnectionFragment extends Fragment {
         usefacing = (facing == CameraCharacteristics.LENS_FACING_BACK) ?
                 Camera.CameraInfo.CAMERA_FACING_BACK :
                 Camera.CameraInfo.CAMERA_FACING_FRONT;
-
+        Log.d("LegacyCameraConnectionFragment layout: ", String.valueOf(layout));
+        Log.d("LegacyCameraConnectionFragment desiredSize: ", String.valueOf(desiredSize));
+        Log.d("LegacyCameraConnectionFragment facing: ", String.valueOf(facing));
         return f;
     }
 
@@ -197,19 +200,19 @@ public class LegacyCameraConnectionFragment extends Fragment {
 
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-    @Override
-    public void onSaveInstanceState(Bundle state) {
-        state.putInt("layout", layout);
-        state.putSize("desiredSize", desiredSize);
-        state.putInt("facing", facing);
-        super.onSaveInstanceState(state);    }
+
 
     public LegacyCameraConnectionFragment(
             final Camera.PreviewCallback imageListener, final int layout, final Size desiredSize, int facing) {
 
          Log.d("LegacyCameraConnectionFragment face camera id: ", String.valueOf(facing));
-
+        this.imageListener = imageListener;
+        this.layout = layout;
+        this.desiredSize = desiredSize;
+        this.facing = facing;
+        usefacing = (facing == CameraCharacteristics.LENS_FACING_BACK) ?
+                Camera.CameraInfo.CAMERA_FACING_BACK :
+                Camera.CameraInfo.CAMERA_FACING_FRONT;
     }
 
     @Override
@@ -220,15 +223,21 @@ public class LegacyCameraConnectionFragment extends Fragment {
 
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+    @SuppressLint("LongLogTag")
     @Override
     public View onCreateView(
             final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
-        if (savedInstanceState != null) {
-            layout = savedInstanceState.getInt("layout");
-            desiredSize = savedInstanceState.getSize("desiredSize");
-            facing = savedInstanceState.getInt("facing");
+        Log.d("LegacyCameraConnectionFragment layout1:",String.valueOf(layout));
 
-        }
+//        if (savedInstanceState != null) {
+//            Log.d("LegacyCameraConnectionFragment layout:",String.valueOf(layout));
+//            layout = savedInstanceState.getInt("layout");
+//            Log.d("LegacyCameraConnectionFragment layout:",String.valueOf(layout));
+//            desiredSize = savedInstanceState.getSize("desiredSize");
+//            facing = savedInstanceState.getInt("facing");
+//
+//        }
         return inflater.inflate(layout, container, false);
 
     }
@@ -273,7 +282,6 @@ public class LegacyCameraConnectionFragment extends Fragment {
                             }
 
 
-
                 }
             } else {
                 Toast.makeText(getContext(), "back", Toast.LENGTH_SHORT).show();
@@ -300,7 +308,6 @@ public class LegacyCameraConnectionFragment extends Fragment {
                                 + " : ", e1.toString());
                     }
                 }
-
             }
 
         } else {

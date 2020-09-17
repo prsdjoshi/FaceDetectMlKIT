@@ -194,6 +194,7 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
     private MediaProjection mMediaProjection;
     private ImageReader mImageReader;
     private VirtualDisplay mVirtualDisplay;
+    private Integer getTrackingId=0;
 
     @Override
     protected void setupCamera() {
@@ -221,12 +222,13 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
         // Real-time contour detection of multiple faces
         FaceDetectorOptions options =
                 new FaceDetectorOptions.Builder()
-                        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-                        .setContourMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+                        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+                        .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
                         .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
-                       // .setMinFaceSize(0.30f)
-                    //    .setMinFaceSize(0.15f)
-                        //.enableTracking()
+                        // .setMinFaceSize(0.30f)
+                        //.setMinFaceSize(0.15f)
+                        .enableTracking()
+
                         .build();
 
 //        FaceDetectorOptions realTimeOpts =
@@ -235,7 +237,6 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
 //                        .build();
 
         FaceDetector detector = FaceDetection.getClient(options);
-
         faceDetector = detector;
 
         try {
@@ -687,9 +688,15 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
 
     private void setFullCameraPreview() {
         isPreviewVisible=true;
-        RelativeLayout.LayoutParams capturePhotoFrameLayout = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        frameLayout.setLayoutParams(capturePhotoFrameLayout);
-        changeMessage(true);
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                RelativeLayout.LayoutParams capturePhotoFrameLayout = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+                frameLayout.setLayoutParams(capturePhotoFrameLayout);
+                changeMessage(true);
+            }
+        },1000);
+
     }
 
     private void setInvisibleCameraPreview() {
@@ -776,11 +783,24 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
 
 
         if (mappedRecognitions.size() > 0) {
+            if(getTrackingId == mappedRecognitions.get(0).getFace().getTrackingId())
+            {
+                activity.runOnUiThread(
+                        new Runnable() {
+                            @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+                            @Override
+                            public void run() {
+                                txtBeforeAfterFaceDetection.setText("Please Move Forward");
+
+                            }});
+                return;
+            }
             array_probability.add(mappedRecognitions.get(0).getTitle());
             if (array_probability.size() > 3) {
 
                 activity.runOnUiThread(
                         new Runnable() {
+                            @SuppressLint("LongLogTag")
                             @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
                             @Override
                             public void run() {
@@ -790,6 +810,7 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
                                     Log.e("Exception in txtBeforeAfterFaceDetection invisible " , e.toString());
                                 }
                                 isNoface_inRect = true;
+                                getTrackingId = mappedRecognitions.get(0).getFace().getTrackingId();
                                 capturePreviewVisible();
 
                             }
@@ -923,8 +944,9 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
             try {
                 Log.d("Camera Preview SS captured: sendBroadcast","bitmap null");
 
-                Intent ackIntent = new Intent(ContantValues.SS_CAPTURED.getEventCodeString());
-                LocalBroadcastManager.getInstance(activity).sendBroadcast(ackIntent);
+           //     Intent ackIntent = new Intent(ContantValues.SS_CAPTURED.getEventCodeString());
+        //        LocalBroadcastManager.getInstance(activity).sendBroadcast(ackIntent);
+                capturedPhoto.setImageDrawable(context.getResources().getDrawable(R.drawable.capturephoto));
             } catch (Exception e) {
                 Log.e("Error broadcasting " + ContantValues.SS_CAPTURED.getEventCodeString()
                         + " : ", e.toString());
@@ -1392,36 +1414,52 @@ public class FaceDetectorPreview extends CameraPreview implements OnImageAvailab
                                 String.valueOf(rect_face.top)+", bottom: "+String.valueOf(rect_face.bottom));
 
                         inRect++;
-
-                        if (true)
-                       // if(value_rectCheck < rect_face.width())
+                        if(true)
                         {
-                            final Classifier.Recognition result = new Classifier.Recognition(
-                                    "0", label, confidence, boundingBox,face);
-                            result.setColor(color);
-                            result.setLocation(boundingBox);
-                            result.setFace(face);
-                            mappedRecognitions.add(result);
+
+                            if (true)
+                            // if(value_rectCheck < rect_face.width())
+                            {
+                                final Classifier.Recognition result = new Classifier.Recognition(
+                                        "0", label, confidence, boundingBox,face);
+                                result.setColor(color);
+                                result.setLocation(boundingBox);
+                                result.setFace(face);
+                                mappedRecognitions.add(result);
+
+                                activity.runOnUiThread(
+                                        new Runnable() {
+                                            @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+                                            @Override
+                                            public void run() {
+                                                txtBeforeAfterFaceDetection.setText("Please stand steady to detect your face properly ");
+
+                                            }});
+
+                            }
+                            else {
+                                activity.runOnUiThread(
+                                        new Runnable() {
+                                            @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+                                            @Override
+                                            public void run() {
+                                                txtBeforeAfterFaceDetection.setText("Please come closer to the circle");
+
+                                            }});
+                            }
+                        }else {
                             activity.runOnUiThread(
                                     new Runnable() {
                                         @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
                                         @Override
                                         public void run() {
-                                            txtBeforeAfterFaceDetection.setText("Please stand steady to detect your face properly ");
-
-                                        }});
-
-                        }
-                        else {
-                            activity.runOnUiThread(
-                                    new Runnable() {
-                                        @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-                                        @Override
-                                        public void run() {
-                                            txtBeforeAfterFaceDetection.setText("Please come closer to the circle");
+                                            txtBeforeAfterFaceDetection.setText("Please Move Forward");
 
                                         }});
                         }
+
+                        Log.d("Tracking ID: ", String.valueOf(face.getTrackingId()));
+
 
                     }
                     else {

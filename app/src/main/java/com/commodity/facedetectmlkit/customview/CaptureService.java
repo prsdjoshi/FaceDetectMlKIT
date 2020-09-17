@@ -43,6 +43,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG;
+import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+import static android.view.WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
+import static android.view.WindowManager.LayoutParams.TYPE_TOAST;
 import static com.commodity.facedetectmlkit.kioskdemo.FaceDetectorPreview.capturedPhoto;
 
 /**
@@ -93,6 +97,7 @@ public class CaptureService extends Service {
                         new IntentFilter(ContantValues.SS_CAPTURED
                                 .getEventCodeString()));
     }
+
     private BroadcastReceiver activtySS_CAPTURED = new BroadcastReceiver() {
 
         @Override
@@ -159,18 +164,18 @@ public class CaptureService extends Service {
 
         Handler handler1 = new Handler();
         handler1.postDelayed(new Runnable() {
-            public void run() {
-                //start virtual
-                startVirtual();
-            }
-        }, 5);
+                public void run() {
+                    //start virtual
+                    startVirtual();
+                }
+            }, 5);
 
         handler1.postDelayed(new Runnable() {
-            public void run() {
-                //capture the screen
-                startCapture();
+                public void run() {
+                    //capture the screen
+                    startCapture();
 
-            }
+                }
         }, 30);
     }
 
@@ -298,7 +303,6 @@ public class CaptureService extends Service {
                 ((ScreenCaptureApplication) getApplication()).setmScreenCaptureBitmap(bitmap);
                 Intent ackIntent = new Intent(ContantValues.SS_CAPTURED_SET.getEventCodeString());
                 LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(ackIntent);
-                Log.e("ryze", "获取图片成功");
             }
 
 

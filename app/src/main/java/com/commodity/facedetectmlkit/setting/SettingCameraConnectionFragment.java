@@ -179,7 +179,6 @@ public class SettingCameraConnectionFragment extends Fragment {
         this.desiredSize = desiredSize;
         this.facing = facing;
 
-        Log.d("SettingCameraConnectionFragment face camera id: ", String.valueOf(facing));
     }
 
     @Override
